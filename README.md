@@ -145,7 +145,15 @@ curl -i http://localhost:8000/health
 
 **Actual terminal response:**
 
-[Replace this line with the complete output copied from your own curl command, including HTTP status and JSON response.]
+```bash
+HTTP/1.1 200 OK
+date: Fri, 20 Nov 2026 13:30:36 GMT
+server: uvicorn
+content-length: 15
+content-type: application/json
+
+{"status":"ok"}
+```
 
 ### Swagger UI
 
