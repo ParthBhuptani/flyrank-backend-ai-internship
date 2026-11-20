@@ -1,9 +1,28 @@
-import json
-
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, Body, Request
+from fastapi.exception_handlers import request_validation_exception_handler
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
 
-app = FastAPI()
+app = FastAPI(
+    title="Task API",
+    version="1.0",
+    description="A simple in-memory API for managing tasks."
+)
+
+@app.exception_handler(RequestValidationError)
+async def handle_validation_error(request: Request, exc: RequestValidationError):
+
+    # Convert invalid request body errors into HTTP 400
+    if any(
+        error.get("loc", [None])[0] == "body"
+        for error in exc.errors()
+    ):
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Invalid request body"}
+        )
+
+    return await request_validation_exception_handler(request, exc)
 
 # In-memory task storage
 tasks = [
@@ -15,6 +34,7 @@ tasks = [
 # Root endpoint - API information
 @app.get("/")
 def read_root():
+    """Return basic information about the Task API"""
     return{
         "name": "Task API",
         "version": "1.0",
@@ -24,6 +44,7 @@ def read_root():
 # Health check endpoint
 @app.get("/health")
 def health_check():
+    """Check whether the Task API is responding"""
     return{
         "status": "ok"
     }
@@ -31,6 +52,7 @@ def health_check():
 # Get all tasks
 @app.get("/tasks")
 def get_tasks():
+    """Retrieve a task by its ID."""
     return tasks
 
 # Get a single task by ID
@@ -48,7 +70,8 @@ def get_task(task_id: int):
 
 # Create a new task
 @app.post("/tasks", status_code=201)
-def create_task(payload: dict):
+def create_task(payload: dict = Body(...)):
+    """Create a new task after validating its title."""
 
     # xtract title from request body
     title = payload.get("title")
@@ -82,7 +105,8 @@ def create_task(payload: dict):
 
 # Update an existing task
 @app.put("/tasks/{task_id}")
-async def update_task(task_id: int, request: Request):
+def update_task(task_id: int, payload: dict = Body(...)):
+    """Update the title and/or completion status of a task."""
 
     # Find the requested task
     task = next(
@@ -90,37 +114,22 @@ async def update_task(task_id: int, request: Request):
         None
     )
 
-    # Return 404 if the task doesn't exist
     if task is None:
         return JSONResponse(
             status_code=404,
             content={"error": f"Task {task_id} not found"}
         )
 
-    # Read and validate the request body
-    try: 
-        payload = await request.json()
-    except (json.JSONDecodeError, UnicodeDecodeError):
+    # Reject empty or unsupported request bodies
+    if not payload or not any(
+        field in payload for field in ("title", "done")
+    ):
         return JSONResponse(
             status_code=400,
-            content={"error": "Request body must contain valid JSON"}
-        )
-    
-    # Body must be a non-empty JSON object
-    if not isinstance(payload, dict) or not payload:
-        return JSONResponse(
-            status_code=400,
-            content={"error": "Request body must be a non-empty JSON object"}
-        )
-    
-    # At least one supported field must be provided
-    if not any(field in payload for field in ("title", "done")):
-        return JSONResponse(
-            status_code=400,
-            content={"error": "Provide at least one valid field: title or done"}
+            content={"error": "Provide title and/or done"}
         )
 
-    # Validate title if provided
+    # Validate title
     if "title" in payload:
         title = payload["title"]
 
@@ -129,27 +138,27 @@ async def update_task(task_id: int, request: Request):
                 status_code=400,
                 content={"error": "Title must be a non-empty string"}
             )
-    
-    # Validate done if provided
-    if "done" in payload:
-        if not isinstance(payload["done"], bool):
-            return JSONResponse(
-                status_code=400,
-                content={"error":"Done must be a boolean"}
-            )
-    
-    # Update only the provided fields
+
+    # Validate completion status
+    if "done" in payload and not isinstance(payload["done"], bool):
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Done must be a boolean"}
+        )
+
+    # Apply valid updates
     if "title" in payload:
         task["title"] = payload["title"].strip()
-    
+
     if "done" in payload:
         task["done"] = payload["done"]
-    
+
     return task
 
 # Delete an existing task
 @app.delete("/tasks/{task_id}", status_code=204)
 def delete_task(task_id: int):
+    """Delete a task by its ID."""
 
     # Find the task
     for index, task in enumerate(tasks):
