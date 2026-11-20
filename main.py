@@ -43,3 +43,37 @@ def get_task(task_id: int):
         status_code=404,
         content={"error": f"Task {task_id} not found"}
     )
+
+# Create a new task
+@app.post("/tasks", status_code=201)
+def create_task(payload: dict):
+
+    # xtract title from request body
+    title = payload.get("title")
+
+    # Validate title
+    if not isinstance(title, str) or not title.strip():
+        return JSONResponse(
+            status_code=404,
+            content={
+                "error": "Title is required and must be a non-empty string"
+            }        
+        )
+
+    # Generate the next available ID
+    next_id = max(
+        (task["id"] for task in tasks),
+        default=0
+    ) + 1
+
+    # Create the new task
+    new_task = {
+        "id": next_id,
+        "title": title.strip(),
+        "done": False
+    }
+
+    # Add task to the list
+    tasks.append(new_task)
+
+    return new_task
