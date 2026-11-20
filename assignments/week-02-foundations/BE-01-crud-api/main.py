@@ -52,12 +52,13 @@ def health_check():
 # Get all tasks
 @app.get("/tasks")
 def get_tasks():
-    """Retrieve a task by its ID."""
+     """Return all tasks stored in memory."""
     return tasks
 
 # Get a single task by ID
 @app.get("/tasks/{task_id}")
 def get_task(task_id: int):
+    """Retrieve a task by its ID."""
     for task in tasks:
         if task["id"] == task_id:
             return task
@@ -79,7 +80,7 @@ def create_task(payload: dict = Body(...)):
     # Validate title
     if not isinstance(title, str) or not title.strip():
         return JSONResponse(
-            status_code=404,
+            status_code=400,
             content={
                 "error": "Title is required and must be a non-empty string"
             }        
