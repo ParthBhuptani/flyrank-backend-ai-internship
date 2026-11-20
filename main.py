@@ -1,5 +1,7 @@
-from fastapi import FastAPI
-from fastapi.responses import JSONResponse
+import json
+
+from fastapi import FastAPI, Request, status
+from fastapi.responses import JSONResponse, Response
 
 app = FastAPI()
 
@@ -77,3 +79,89 @@ def create_task(payload: dict):
     tasks.append(new_task)
 
     return new_task
+
+# Update an existing task
+@app.put("/tasks/{task_id}")
+async def update_task(task_id: int, request: Request):
+
+    # Find the requested task
+    task = next(
+        (task for task in tasks if task["id"] == task_id),
+        None
+    )
+
+    # Return 404 if the task doesn't exist
+    if task is None:
+        return JSONResponse(
+            status_code=404,
+            content={"error": f"Task {task_id} not found"}
+        )
+
+    # Read and validate the request body
+    try: 
+        payload = await request.json()
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Request body must contain valid JSON"}
+        )
+    
+    # Body must be a non-empty JSON object
+    if not isinstance(payload, dict) or not payload:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Request body must be a non-empty JSON object"}
+        )
+    
+    # At least one supported field must be provided
+    if not any(field in payload for field in ("title", "done")):
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Provide at least one valid field: title or done"}
+        )
+
+    # Validate title if provided
+    if "title" in payload:
+        title = payload["title"]
+
+        if not isinstance(title, str) or not title.strip():
+            return JSONResponse(
+                status_code=400,
+                content={"error": "Title must be a non-empty string"}
+            )
+    
+    # Validate done if provided
+    if "done" in payload:
+        if not isinstance(payload["done"], bool):
+            return JSONResponse(
+                status_code=400,
+                content={"error":"Done must be a boolean"}
+            )
+    
+    # Update only the provided fields
+    if "title" in payload:
+        task["title"] = payload["title"].strip()
+    
+    if "done" in payload:
+        task["done"] = payload["done"]
+    
+    return task
+
+# Delete an existing task
+@app.delete("/tasks/{task_id}", status_code=204)
+def delete_task(task_id: int):
+
+    # Find the task
+    for index, task in enumerate(tasks):
+        if task["id"] == task_id:
+            # Remove the task
+            tasks.pop(index)
+
+            # Return 204 No Content
+            return Response(status_code=204)
+    
+    # Return 404 if the task doesn't exist
+    return JSONResponse(
+        status_code=404,
+        content={"error": f"Task {task_id} not found"}
+    )
