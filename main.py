@@ -1,11 +1,19 @@
 from fastapi import FastAPI
 
-# Create the FastAPI application
 app = FastAPI()
 
-#First route
+# Root endpoint - API information
 @app.get("/")
-def home():
+def read_root():
     return{
-        "message": "Hello from Task API"
+        "name": "Task API",
+        "version": "1.0",
+        "endpoints": ["/tasks"]
+    }
+
+# Health check endpoint
+@app.get("/health")
+def health_check():
+    return{
+        "status": "ok"
     }
