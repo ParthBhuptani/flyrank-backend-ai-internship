@@ -35,7 +35,7 @@ tasks = [
 @app.get("/")
 def read_root():
     """Return basic information about the Task API"""
-    return{
+    return {
         "name": "Task API",
         "version": "1.0",
         "endpoints": ["/tasks"]
@@ -45,14 +45,14 @@ def read_root():
 @app.get("/health")
 def health_check():
     """Check whether the Task API is responding"""
-    return{
+    return {
         "status": "ok"
     }
 
 # Get all tasks
 @app.get("/tasks")
 def get_tasks():
-     """Return all tasks stored in memory."""
+    """Return all tasks stored in memory."""
     return tasks
 
 # Get a single task by ID
@@ -74,7 +74,7 @@ def get_task(task_id: int):
 def create_task(payload: dict = Body(...)):
     """Create a new task after validating its title."""
 
-    # xtract title from request body
+    # Extract title from request body
     title = payload.get("title")
 
     # Validate title
